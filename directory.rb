@@ -1,4 +1,5 @@
 TIOCGWINSZ = 0x40087468
+student_csv = File.open('./students.csv')
 
 # This method is purely a learning exercise to try to replace .chomp method
 def new_chomp(string)
@@ -111,7 +112,7 @@ def collect_name_cohort
 	if !has_student?(students)
 		puts " No students! Starting again! ".center(get_winsize, "*")
 		puts "------ Press Ctrl-C to exit ------".center(get_winsize)
-		prints "\n\n"
+		print "\n\n"
 	end
 	#return the array of students
 	students
