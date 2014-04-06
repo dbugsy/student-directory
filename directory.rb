@@ -1,20 +1,9 @@
 TIOCGWINSZ = 0x40087468
 student_csv = File.open('./students.csv')
 
-# This method is purely a learning exercise to try to replace .chomp method
-def new_chomp(string)
-	string.gsub!("\n", "")
-end
-
-# This methods defines allowable input for cohort
-def valid_months(input_symbol)
-	months = [:January, :February, :March, :April, :May, :June, :July, :August, :September, :October, :November, :December]
-	months.include?(input_symbol)
-end
-
-# Check whether student list has any contents
-def has_student?(student_list)
-	!student_list.empty?
+# boolean: is the value plural?
+def is_plural?(value)
+	(value > 1) || (value < 1)
 end
 
 # get properties of current terminal window
@@ -27,109 +16,170 @@ def get_winsize
   end
 end
 
-# method to collect multiple entries from user, until another_field != Y
-def collect_more_fields(hash)
-	enterNewField = true
-	while enterNewField
-		print "Do you want to add another field to #{hash[:Name]}'s information? (y/n)\n"
-		print " > "
-		another_field = gets.chomp.to_s.upcase
-		if another_field == "Y"
-			print "What is the name of the field?\n"
-			new_field = gets.chomp
-			print "What is the value?\n"
-			new_val = gets.chomp
-			hash[new_field.to_sym]=new_val
-		else
-			enterNewField = false
+#This creates an array of strings from the csv
+def create_arr_strs(csv)
+	arr_of_strings = csv.read.split("\r")
+	arr_of_strings
+end
+
+# This creates an array of arrays from an array of strings
+def create_arr_arrays(arr_strings)
+	arr_strings.map do |row| 
+		row.split(",").map { |word| word.strip }
 		end
-	end
 end
 
-# cleanup a string to remove whitespace and capitalize
-def cleanup(string)
-	string.strip!
-	string.capitalize!
-	string
-end
-
-# standard method to collect input from user
-def get_info
-	x = new_chomp(gets)
-	x.split(":").map{|field| cleanup(field)}
-end
-
-# boolean: is the value plural?
-def is_plural?(value)
-	value > 1
-end
-
-# prints number of students currently entered into the program
-def print_current_students(students)
-	str = "Currently we have #{students.length} student#{'s' if is_plural?(students.length)}\nPlease enter the name of the next student\n"
-	print str
+# This creates an array of hashes - each hash contains info for 1 student
+def create_arr_hashes(arr_arrays)
+	hash_keys = arr_arrays.shift.map { |key| key.to_sym  }
+	arr_index = 0
+	arr_hashes = []
+	arr_arrays.each do |student|
+			student_hash = {}
+			student.each do |value|
+				student_hash[hash_keys[arr_index]] = value
+				arr_index += 1
+				end
+			student_hash[:cohort] = :March
+			arr_hashes << student_hash
+			arr_index = 0
+			end
+	arr_hashes
 end
 
 # welcome!
 def prog_start
-	print "\n\n"
-	print " WELCOME TO STUDENT DIRECTORY! ".center(get_winsize, '*')
-	print "\n\n"
+	
 end
 
-# collect the name and cohort of a student
-def collect_name_cohort
-	
-	print "Please enter the name and cohort of the students"
-	print "\nUse the format: Name : Cohort. Cohort defaults to March.\n"
-	print "To finish, just hit return twice, or Ctrl-C to exit without saving\n"
-	print " > "
-	# create an empty array
-	students = []
-	# get first name
-	name_and_cohort = get_info
-	# while the name is not empty repeat this code
-	while !name_and_cohort.empty? do
-		# add the student hash to the array
-		name_and_cohort << "March" if name_and_cohort[1].nil?
-		#check if entered cohort is valid, and if not start again.
-		if !valid_months(name_and_cohort[1].to_sym)
-			puts "Unrecognised cohort (should be a month)."
-			print_current_students(students)
-			name_and_cohort = get_info
-			next
+# collect name of student and return it to the program
+def collect_name
+	puts "Please enter full name of the student you wish to add / amend."
+	print "Alternatively press enter to exit and print results.\n > "
+	name = gets.chomp.split.map(&:capitalize).join(' ').strip
+	name
+end
+
+# check file for student name
+def name_exists?(stdname, arr_of_hashes)
+	!arr_of_hashes.select { |hash| hash[:name] == stdname }.empty?
+end
+
+def collect_email(name)
+	new_std_hash = {name: name}
+	print "Please enter #{name}'s email address\n > "
+	new_std_hash[:email] = gets.chomp.strip.downcase
+	new_std_hash
+end
+
+def collect_skype(std_hash, name)
+	print "Please enter #{name}'s skype name\n > "
+	std_hash[:skype] = gets.chomp.strip
+	std_hash
+end
+
+# This methods defines allowable input for cohort
+def valid_cohort?(input_symbol)
+	months = [:January, :February, :March, :April, :May, :June, :July, :August, :September, :October, :November, :December]
+	months.include?(input_symbol)
+end
+
+def collect_cohort(std_hash, name)
+	print "Please enter #{name}'s cohort\n > "
+	input = gets.chomp.strip.downcase.capitalize.to_sym
+	if !input.empty?
+		while !valid_cohort?(input)
+			puts 'Not a valid cohort (should be a month). Please try again.'
+			print "Please enter #{name}'s cohort\n > "
+			input = gets.chomp.strip.downcase.capitalize.to_sym
 		end
-		# creates the hash and adds it to array students
-		students << {:Name => name_and_cohort[0], :Cohort => name_and_cohort[1].to_sym}
-		# now pass to collect_more_fields to see what else user would like to enter
-		collect_more_fields(students[-1])
-		# show user how many students are currently entered
-		print_current_students(students)
-		# ask for the next student
-		name_and_cohort = get_info
+		std_hash[:cohort] = input
+	else
+		std_hash[:cohort] = :March
 	end
-	# return to start if no students entered, also remind user how to exit
-	if !has_student?(students)
-		puts " No students! Starting again! ".center(get_winsize, "*")
-		puts "------ Press Ctrl-C to exit ------".center(get_winsize)
-		print "\n\n"
+	std_hash
+end
+
+def give_options
+	print "Options are: email ; skype ; cohort ; or press enter to complete this entry.\n"
+	print "Which field would you like to amend?\n > "
+end
+
+def make_amends(students, stdname, hash)
+	students << hash
+	print "#{stdname} updated.\n"
+	give_options
+	students
+end
+
+# prints number of students currently entered into the program
+def print_current_students(students)
+	str = "Currently we have #{students.length} student#{'s' if is_plural?(students.length)}\n"
+	print str
+end
+
+def collect_amends(students, name)
+	give_options
+	# THIS MIGHT NOT WORK!
+	field = gets.chomp.strip.downcase
+	while !field.empty? do
+		case field
+		when 'cohort'
+			student = students.select { |hash| hash[:name] == name }[0]
+			students.delete_if { |hash| hash[:name] == name }
+			students = make_amends(students, name, collect_cohort(student, name))
+			field = gets.chomp.strip.downcase
+		when 'skype'
+			student = students.select { |hash| hash[:name] == name }[0]
+			students.delete_if { |hash| hash[:name] == name }
+			students = make_amends(students, name, collect_skype(student, name))
+			field = gets.chomp.strip.downcase
+		when 'email'
+			student = students.select { |hash| hash[:name] == name }[0]
+			students.delete_if { |hash| hash[:name] == name }
+			students = make_amends(students, name, collect_email(name))
+			field = gets.chomp.strip.downcase
+		else
+			puts 'Error: please enter valid option.'
+			give_options
+			field = gets.chomp.strip.downcase
+		end
 	end
-	#return the array of students
+	puts 'Entry completed'
+	students
+end
+
+def collect_input(students)
+	student_name = collect_name
+	while !student_name.empty? do
+		if !name_exists?(student_name, students)
+			students << collect_cohort(collect_skype(collect_email(student_name), student_name), student_name)
+			print_current_students(students)
+			student_name = collect_name
+		else name_exists?(student_name, students)
+			puts "#{student_name} already exists:"
+			print "#{students.select{|hash| hash[:name] == student_name}[0].to_s}"
+			print "\nAmend? (y/n)\n > "
+			amend = gets.chomp.strip.downcase
+			if amend == 'y'
+				students = collect_amends(students, student_name)
+				print_current_students(students)
+				student_name = collect_name
+			elsif amend == 'n'
+				puts 'Entry cancelled'
+				print_current_students(students)
+				student_name = collect_name
+			end
+		end
+	end
+	puts 'Entry completed.'
 	students
 end
 
 # the header will display at the top of the final results
-def print_header()
+def print_header(cohort_sym)
 	puts "The students of #{cohort_sym.to_s} cohort at Makers Academy".center(get_winsize)
 	puts "-----------".center(get_winsize)
-end
-
-# this prints individual students hash, in a readable format.
-def print_hash(hash)
-	hash.each do |key, value|
-		print "#{key} : #{value}\t"
-	end
-	print "\n"
 end
 
 # changes the hash to string for easier formatting
@@ -141,55 +191,61 @@ def hash_to_string(hash)
 	string
 end	
 
-# this is where we have the rules specified in the exercises
-# specifically, in order to print, the student name must start with A
-# and should be less than 11 characters long
-def print_validation(hash)
-	hash[:Name].split('')[0] == "A" && hash[:Name].length<12
-end
-
 # prints the entire student array, indexed for readability
 def print_list(list)
-	max_index = list.length-1;
-	i=0
-
+	max_index = list.length;
+	i=1
 	while i<=max_index
-		# checks if student passes the rules in print_validation
-		if print_validation(list[i])
-			centered_string =  "#{i+1}. #{hash_to_string(list[i])}"
-			puts centered_string.center(get_winsize)
-		end 
-		i +=1
-
+	print "#{i}. #{hash_to_string(list[i-1])}".center(get_winsize)
+	print "\n"
+	i +=1
 	end
 end
 
 # selects only the students from the cohort the user wants to print
 def extract_from(students, cohort_sym)
-	results = students.select do |student|
-		student[:Cohort]==cohort_sym
+	if !cohort_sym == :Nofilter
+		results = students.select do |student|
+			student[:cohort] == cohort_sym
+			end
+	else 
+		results = students
 	end
 	results
 end
 
-# creates empty student array
-students =[]
-
-# STARTING EXECUTABLE CODE HERE
-prog_start
-
-while !has_student?(students)
-	students = collect_name_cohort
+def compile_results(students)
+	print "\n\nCompiling results...\n\n"
+	print_list(extract_from(students, :Nofilter))
+	print "Which cohort would you like to filter by (press enter for no filter)?\n> "
+	input = gets.chomp.strip.downcase.capitalize.to_sym
+	if !input.empty?
+		while !valid_cohort?(input) do
+		print "Not a valid cohort (should be a month). Please try again.\n >" 
+		input = gets.chomp.strip.downcase.capitalize.to_sym
+		end
+		cohort_sym = input
+	else
+		cohort_sym = :Nofilter
+	end
+	print_header(cohort_sym)
+	print_list(extract_from(students, cohort_sym))
+	puts "Showing #{extract_from(students, cohort_sym).count} student#{'s' if is_plural?(extract_from(students, cohort_sym).count)}."
+	puts "A total of #{students.count} were entered.".center(get_winsize)
 end
 
-#get cohort choice
-print "Which cohort would you like to filter by?\n> "
-cohort_sym = (cleanup(gets.chomp)).to_sym
-puts "The students of #{cohort_sym.to_s} cohort at Makers Academy".center(get_winsize)
-puts "-----------".center(get_winsize)
-print_header
-chosen_students = extract_from(students,cohort_sym)
-print_list(chosen_students)
-puts "Showing #{chosen_students.count} student#{'s' if is_plural?(chosen_students.count)}."
-"A total of #{students.count} were entered.".center(get_winsize)
+
+
+# begin by creating student directory 'students'
+
+students = create_arr_hashes(create_arr_arrays(create_arr_strs(student_csv)))
+
+print "\n\n"
+print " WELCOME TO STUDENT DIRECTORY! ".center(get_winsize, '*')
+print "\n\n"
+
+compile_results(collect_input(students))
+
+
+
 
