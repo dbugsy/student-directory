@@ -214,9 +214,32 @@ def extract_from(students, cohort_sym)
 	results
 end
 
+def write_all_CSV(students)
+	print "Would you like to save this to the CSV (y/n)?\nWARNING! This will overwrite original file!!"
+	input = gets.strip.downcase
+	if input[0] == "y"
+		csv = File.open('./edited_students.csv', 'w')
+		tempstring = ""
+		students[0].to_a.map {|arr| tempstring << arr[0].to_s
+								tempstring << ", "
+								}
+		newcsv = tempstring[0..-3]
+		newcsv << "\r"
+		students.map do |hash|
+			string = ""
+			hash.map { |arr| string << arr[1].to_s
+						string << ", "}
+			newcsv << string[0..-3]
+			newcsv << "\r"
+			end
+		csv.write(newcsv)
+	end
+end
+
 def compile_results(students)
 	print "\n\nCompiling results...\n\n"
 	print_list(extract_from(students, :Nofilter))
+	write_all_CSV(students)
 	print "Which cohort would you like to filter by (press enter for no filter)?\n> "
 	input = gets.chomp.strip.downcase.capitalize.to_sym
 	if !input.empty?
@@ -225,13 +248,18 @@ def compile_results(students)
 		input = gets.chomp.strip.downcase.capitalize.to_sym
 		end
 		cohort_sym = input
+		print_header(cohort_sym)
+		print_list(extract_from(students, cohort_sym))
+		puts "Showing #{extract_from(students, cohort_sym).count} student#{'s' if is_plural?(extract_from(students, cohort_sym).count)}."
+		puts "A total of #{students.count} student#{'s' if is_plural?(students.count)} were entered."
+		write_all_CSV(extract_from(students, cohort_sym))
 	else
 		cohort_sym = :Nofilter
 	end
-	print_header(cohort_sym)
-	print_list(extract_from(students, cohort_sym))
-	puts "Showing #{extract_from(students, cohort_sym).count} student#{'s' if is_plural?(extract_from(students, cohort_sym).count)}."
-	puts "A total of #{students.count} were entered.".center(get_winsize)
+	print "\n"
+	print " Thank you for using Student Directory ".center(get_winsize)
+	print " ---------- Goodbye! ---------- ".center(get_winsize)
+	print "\n"
 end
 
 
@@ -240,8 +268,16 @@ end
 
 students = create_arr_hashes(create_arr_arrays(create_arr_strs(student_csv)))
 
+puts "\e[H\e[2J"
+
 print "\n\n"
 print " WELCOME TO STUDENT DIRECTORY! ".center(get_winsize, '*')
+print "\n\n"
+print "-------- Current Students --------".center(get_winsize)
+print "\n\n"
+print_list(students)
+print "\n"
+print "----------------------------------".center(get_winsize)
 print "\n\n"
 
 compile_results(collect_input(students))
